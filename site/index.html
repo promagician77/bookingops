@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Checkout Reliability Lab</title>
+<meta name="description" content="Booking checkout, CardPointe timeout handling, an MCP layer and telephony webhooks, measured on real MongoDB.">
+<link rel="preload" href="fonts/instrument-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <div>
+    <div class="kicker">Booking · payments · ops</div>
+    <h1>What happens to a booking when the payment answer never comes back</h1>
+    <p>Two checkout flows run the same booking rush on MongoDB 8.3 against a CardPointe-shaped test gateway that drops, delays and times out. Plus an MCP layer in front of an old reservation API, and Twilio/Telnyx webhook checks. Every number on this page comes from a script in the repo.</p>
+  </div>
+  <div class="stamp" id="stamp"></div>
+</header>
+<nav class="tabs" id="tabs">
+  <button data-t="faults" class="on"><span class="n">01</span>Checkout under faults</button>
+  <button data-t="race"><span class="n">02</span>Race for the last seats</button>
+  <button data-t="timeout"><span class="n">03</span>When the gateway goes quiet</button>
+  <button data-t="mcp"><span class="n">04</span>MCP layer</button>
+  <button data-t="phones"><span class="n">05</span>Phones &amp; webhooks</button>
+  <button data-t="plan"><span class="n">06</span>Where I'd start</button>
+  <button data-t="run"><span class="n">07</span>Run it</button>
+</nav>
+<main>
+
+<section class="tab on" id="t-faults">
+  <p class="lead" id="faults-lead"></p>
+  <div class="seg" id="scen"><button data-s="faults" class="on">With faults</button><button data-s="clean">No faults, just busy</button></div>
+  <div class="note" id="scen-note" style="margin:-8px 0 14px"></div>
+  <div class="cmp" id="cmp"></div>
+  <p class="note" style="margin-top:10px">Bars after each number: one per seed (5 runs; each run 220 customers arriving within 1.5 s across 40 departures). "Old pattern" is a common way booking code is written, not your code; I haven't seen it.</p>
+  <h2>The two flows</h2>
+  <div class="flows">
+    <div class="flow"><h3>Old pattern</h3><ol>
+      <li>Count booked seats for the departure</li><li>Charge the card (auth + capture in one call)</li><li>Insert the booking</li><li>Error or timeout: the customer presses Pay again, which is a new charge with a new order id</li></ol></div>
+    <div class="flow r"><h3>Reworked</h3><ol>
+      <li>One idempotency key per checkout; one worker per key (a lease)</li><li>Hold seats with one conditional update: <code>booked + held + party ≤ capacity</code></li>
+      <li>Auth only, unique order id per try. No answer, <code>B</code> or 5xx: <code>inquireByOrderid</code> before anything is sent again</li>
+      <li>Seats held → booked, then booking + attempt state in one transaction</li><li>Capture after the confirmation; a background job finishes whatever a crash left</li></ol></div>
+  </div>
+</section>
+
+<section class="tab" id="t-race">
+  <p class="lead" id="race-lead"></p>
+  <div class="player"><button id="play">Play</button><input type="range" id="scrub" min="0" max="1000" value="1000"><span class="t" id="tnow"></span></div>
+  <div class="legend"><span><i style="background:var(--ink2)"></i>reads seats / takes a hold</span><span><i style="background:var(--sun)"></i>card call in flight</span><span><i style="background:var(--teal)"></i>booked</span><span><i style="background:var(--grey)"></i>told sold out / on hold</span><span><i style="border:2px solid var(--mute);border-radius:50%;width:10px;height:10px"></i>card declined</span><span><i style="background:var(--coral)"></i>seats over capacity</span></div>
+  <div class="grid g2" style="margin-top:10px">
+    <div class="race"><h3 style="color:var(--coral)">Old pattern</h3><div id="race-l"></div></div>
+    <div class="race"><h3 style="color:var(--teal)">Reworked</h3><div id="race-r"></div></div>
+  </div>
+  <p class="note" id="race-note"></p>
+</section>
+
+<section class="tab" id="t-timeout">
+  <p class="lead">CardPointe's own guide is blunt about a timed-out auth: <b>"your application can not determine whether or not the transaction was successful."</b> Retrying blindly is how one customer ends up with two charges. The reworked flow asks the gateway first.</p>
+  <div class="grid g2">
+    <div class="card diagram"><h3>What the reworked flow does with an unanswered auth</h3><div id="sm"></div></div>
+    <div class="card">
+      <h3>From the guide this follows</h3>
+      <div class="quote">"Supply a unique order ID for every authorization request."<cite>CardPointe Gateway: Handling Timed-out Transactions</cite></div>
+      <div class="quote">Inquire by order id; respcode 29 "Txn not found" means the auth never happened and can be sent again. No answer to the inquiry either: void by order id, up to 3 tries.<cite>same guide, paraphrased</cite></div>
+      <div class="quote">The Gateway allows 31 seconds for an auth before it times out.<cite>same guide</cite></div>
+      <h3 style="margin-top:18px">In the fault runs (5 seeds)</h3>
+      <div id="paths"></div>
+    </div>
+  </div>
+  <h2>Tests: one per failure, all against real MongoDB</h2>
+  <ul class="tests" id="tests"></ul>
+</section>
+
+<section class="tab" id="t-mcp">
+  <p class="lead">An MCP server (official TypeScript SDK) in front of the reservation backends. The tools stay the same while each one moves from the old API to the new service, and a parity check decides when a move is safe. AI callers can read and propose; a person approves.</p>
+  <div class="card" style="margin-bottom:16px"><div id="mcp-diagram"></div></div>
+  <div class="grid g2">
+    <div class="card"><h3>Who sees which tool</h3><div class="scroll" id="mcp-matrix"></div><p class="note" id="mcp-matrix-note"></p></div>
+    <div class="card"><h3>Parity: old API vs MongoDB, same MCP calls</h3><div id="parity"></div></div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><h3>Guardrails, checked through a real MCP client</h3><div id="checks"></div></div>
+    <div class="card"><h3>Cost of the layer</h3><div id="overhead"></div><h3 style="margin-top:18px">Audit log (first rows)</h3><div class="scroll" id="audit"></div></div>
+  </div>
+</section>
+
+<section class="tab" id="t-phones">
+  <p class="lead">Call-center traffic arrives as webhooks. Three things break quietly: signatures checked against the wrong URL, bodies parsed before checking, and status callbacks that arrive twice or out of order.</p>
+  <div class="grid g3" id="wh-stats"></div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><h3>Behind a TLS-terminating load balancer</h3><div id="proxy"></div></div>
+    <div class="card"><h3>Telnyx Ed25519, same verdict as the SDK</h3><div class="scroll" id="telnyx"></div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Call status for call-quality data: last write wins vs ranked merge</h3><div id="calls"></div></div>
+</section>
+
+<section class="tab" id="t-plan">
+  <p class="lead">An order of work, not a schedule. Measure first, then change the checkout behind a flag, then the rest.</p>
+  <div class="plan">
+    <div class="card"><h3>Measure what's failing now</h3><p>Read-only: match CardPointe reports to bookings. Find order ids with two approvals, captures with no booking, timed-out auths (respcode 62), and departures where bookings exceed capacity. That gives a baseline in dollars and seats.</p></div>
+    <div class="card"><h3>Make retries safe</h3><p>Idempotency key per checkout, a unique order id per auth, inquire before any retry, auth now and capture after the booking exists. Ship behind a flag and compare failure counts.</p></div>
+    <div class="card"><h3>Hold seats, then sweep</h3><p>Atomic seat holds with expiry, a background job that finishes or unwinds stuck checkouts, and an alert when anything stays stuck. "On hold for another guest" instead of a false "sold out".</p></div>
+    <div class="card"><h3>Lock down the webhooks</h3><p>Signature checks on every Twilio and Telnyx endpoint using the public URL and the raw body, replay windows, and a ranked status merge so call-quality numbers aren't skewed.</p></div>
+    <div class="card"><h3>MCP: read tools first</h3><p>Email and review drafting only need reads. Then propose/approve for changes. Move one tool at a time from the old service, each move gated on a parity run.</p></div>
+    <div class="card"><h3>Keep it boring in GitLab</h3><p>The fault suite runs in CI on every merge request; a short runbook per service (deploy, roll back, where logs are); docs live next to the code.</p></div>
+  </div>
+  <h2>What I'd ask for first</h2>
+  <ul class="tight cols2">
+    <li>Read access to the GitLab group and the deploy setup (Hetzner, Atlas, AWS)</li>
+    <li>CardPointe UAT credentials and recent settlement or transaction reports</li>
+    <li>A staging Atlas cluster, or a recent snapshot I can restore</li>
+    <li>The last month of "failed booking" tickets or call-center notes</li>
+    <li>Which webhook URLs Twilio and Telnyx call today</li>
+    <li>Who approves changes that touch payments</li>
+  </ul>
+</section>
+
+<section class="tab" id="t-run">
+  <p class="lead">Everything here runs on a laptop with Node 20+ and a MongoDB replica set (transactions need one).</p>
+<pre>npm install
+# a single-node replica set
+mongod --dbpath ./.mdb --replSet rs0 --port 27017 &amp;
+mongosh --eval 'rs.initiate()'
+
+npm test                 # 20 tests: checkout failures, MCP guardrails, webhook checks
+npm run bench:chaos      # results/chaos.json   (~3 min)
+npm run bench:mcp        # results/mcp.json
+npm run bench:webhooks   # results/webhooks.json
+npm run site             # rebuild site/data from results/
+
+# the MCP server over stdio, for an MCP client
+PRINCIPAL=booking-assistant MONGO_URL=mongodb://127.0.0.1:27017/?replicaSet=rs0 node mcp/stdio.js</pre>
+  <div class="grid g2">
+    <div class="card"><h3>Measured</h3><ul class="tight" id="measured"></ul></div>
+    <div class="card"><h3>Not measured, or not real</h3><ul class="tight">
+      <li>Not CardPointe: a test gateway with the same REST paths and response fields. Real UAT timing and codes were not exercised.</li>
+      <li>Not your code: the "old pattern" is a common one, written by me to compare against.</li>
+      <li>Fault rates (3% lost answers, 1% lost requests, 1% timed out, 1% 5xx, 1% crash per step) are my assumptions.</li>
+      <li>One MongoDB node on a 2-vCPU container. Atlas latency will differ; the counts of oversold seats and double charges don't depend on it.</li>
+      <li>No language model was called. The MCP tools were driven by an MCP client.</li>
+      <li>Twilio and Telnyx were checked against their own SDKs offline, not with live webhooks. The call-status stream is simulated.</li>
+    </ul></div>
+  </div>
+</section>
+</main>
+<footer>Built for this application. Light page, no tracking, not indexed. <span id="foot"></span></footer>
+<script src="app.js"></script>
+</body>
+</html>

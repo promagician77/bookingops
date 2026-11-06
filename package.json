@@ -1,0 +1,29 @@
+{
+  "name": "checkout-reliability-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Booking checkout under payment faults (CardPointe timeout handling) on MongoDB, an MCP layer in front of an old reservation API, and Twilio/Telnyx webhook checks.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 test/checkout.test.js test/mcp-webhooks.test.js",
+    "test:report": "node tools/test_report.js",
+    "bench:chaos": "node bench/chaos.js --seeds 5",
+    "bench:mcp": "node bench/mcp.js",
+    "bench:webhooks": "node bench/webhooks.js",
+    "site": "node tools/export_site.js",
+    "mcp": "node mcp/stdio.js",
+    "build": "echo static site in site/"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "mongodb": "^6.22.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@fontsource/instrument-sans": "^5.3.0",
+    "@fontsource/spline-sans-mono": "^5.3.0",
+    "telnyx": "^7.30.0",
+    "twilio": "^6.3.0"
+  }
+}

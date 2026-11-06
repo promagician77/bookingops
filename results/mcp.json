@@ -1,0 +1,296 @@
+{
+ "when": "2026-11-06T20:34:59.772Z",
+ "sdk": "1.32.2",
+ "data": {
+  "slots": 63,
+  "bookings": 211,
+  "cancelled": 15
+ },
+ "parityBefore": {
+  "calls": 233,
+  "identical": 223,
+  "differing": 10,
+  "fields": {
+   "search_availability: slots[].available": 10
+  },
+  "examples": [
+   {
+    "tool": "search_availability",
+    "args": {
+     "tour": "HELI",
+     "date": "2026-11-07"
+    },
+    "slot": "HELI-2026-11-07-0800",
+    "diffs": [
+     {
+      "path": "slots.0.available",
+      "legacy": 0,
+      "mongo": 1
+     }
+    ]
+   },
+   {
+    "tool": "search_availability",
+    "args": {
+     "tour": "ZIP",
+     "date": "2026-11-07"
+    },
+    "slot": "ZIP-2026-11-07-1100",
+    "diffs": [
+     {
+      "path": "slots.1.available",
+      "legacy": 0,
+      "mongo": 1
+     }
+    ]
+   },
+   {
+    "tool": "search_availability",
+    "args": {
+     "tour": "ZIP",
+     "date": "2026-11-09"
+    },
+    "slot": "ZIP-2026-11-09-1100",
+    "diffs": [
+     {
+      "path": "slots.1.available",
+      "legacy": 1,
+      "mongo": 3
+     }
+    ]
+   }
+  ],
+  "slotsWithCancelledBookings": 13
+ },
+ "parityAfter": {
+  "calls": 233,
+  "identical": 233,
+  "differing": 0,
+  "fields": {},
+  "examples": [],
+  "slotsWithCancelledBookings": 13
+ },
+ "moveParity": {
+  "moves": 60,
+  "outcomesMatch": 60,
+  "bookingsMatch": 211,
+  "bookings": 211,
+  "slotsMatch": 63,
+  "slots": 63,
+  "outcomes": {
+   "full": 32,
+   "moved": 25,
+   "cancelled": 3
+  }
+ },
+ "gates": {
+  "tools": {
+   "email-drafter": [
+    {
+     "name": "search_availability",
+     "readOnly": true,
+     "destructive": false
+    },
+    {
+     "name": "get_booking",
+     "readOnly": true,
+     "destructive": false
+    }
+   ],
+   "booking-assistant": [
+    {
+     "name": "search_availability",
+     "readOnly": true,
+     "destructive": false
+    },
+    {
+     "name": "get_booking",
+     "readOnly": true,
+     "destructive": false
+    },
+    {
+     "name": "propose_reschedule",
+     "readOnly": false,
+     "destructive": false
+    },
+    {
+     "name": "propose_refund",
+     "readOnly": false,
+     "destructive": false
+    }
+   ],
+   "call-center-agent": [
+    {
+     "name": "search_availability",
+     "readOnly": true,
+     "destructive": false
+    },
+    {
+     "name": "get_booking",
+     "readOnly": true,
+     "destructive": false
+    },
+    {
+     "name": "propose_reschedule",
+     "readOnly": false,
+     "destructive": false
+    },
+    {
+     "name": "propose_refund",
+     "readOnly": false,
+     "destructive": false
+    },
+    {
+     "name": "approve_change",
+     "readOnly": false,
+     "destructive": true
+    }
+   ]
+  },
+  "checks": [
+   {
+    "name": "Email drafter cannot call a write tool (it isn't listed for it)",
+    "pass": true,
+    "detail": "MCP error -32602: Tool propose_reschedule not found"
+   },
+   {
+    "name": "Email drafter sees the last name as an initial only",
+    "pass": true,
+    "detail": "{\"first\":\"Leilani\",\"last\":\"B.\"}"
+   },
+   {
+    "name": "Assistant's proposal changes nothing on its own",
+    "pass": true,
+    "detail": "approval 2ef13be5…, booking still on HELI-2026-11-09-1530"
+   },
+   {
+    "name": "Assistant cannot approve its own proposal",
+    "pass": true,
+    "detail": "MCP error -32602: Tool approve_change not found"
+   },
+   {
+    "name": "Agent approves: booking moves, seat counts follow",
+    "pass": true,
+    "detail": "HELI-2026-11-09-1530 → HELI-2026-11-08-1300"
+   },
+   {
+    "name": "The same approval can't be used twice",
+    "pass": true,
+    "detail": "not_pending"
+   },
+   {
+    "name": "Approval re-checks seats: a slot that filled meanwhile is refused",
+    "pass": true,
+    "detail": "full"
+   },
+   {
+    "name": "Refund above the booking total is refused at proposal",
+    "pass": true,
+    "detail": "over_total"
+   },
+   {
+    "name": "Malformed input is rejected by the schema before any backend call",
+    "pass": true,
+    "detail": "MCP error -32602: Input validation error: Invalid arguments for tool g"
+   }
+  ],
+  "auditEntries": 7,
+  "auditSample": [
+   {
+    "at": "2026-11-06T20:34:52.669Z",
+    "principal": "email-drafter",
+    "tool": "get_booking",
+    "args": {
+     "ref": "CY5CYD"
+    },
+    "backend": "mongo",
+    "ok": true,
+    "code": null,
+    "ms": 2.95
+   },
+   {
+    "at": "2026-11-06T20:34:52.692Z",
+    "principal": "booking-assistant",
+    "tool": "propose_reschedule",
+    "args": {
+     "ref": "CY5CYD",
+     "to_slot": "HELI-2026-11-08-1300",
+     "note": "guest asked for a later time"
+    },
+    "backend": "mongo",
+    "ok": true,
+    "code": null,
+    "ms": 12.3
+   },
+   {
+    "at": "2026-11-06T20:34:52.709Z",
+    "principal": "call-center-agent",
+    "tool": "approve_change",
+    "args": {
+     "approval_id": "2ef13be5-b1fc-4f7d-9e0f-37765c2a4145"
+    },
+    "backend": "mongo",
+    "ok": true,
+    "code": null,
+    "ms": 13.41
+   },
+   {
+    "at": "2026-11-06T20:34:52.712Z",
+    "principal": "call-center-agent",
+    "tool": "approve_change",
+    "args": {
+     "approval_id": "2ef13be5-b1fc-4f7d-9e0f-37765c2a4145"
+    },
+    "backend": "mongo",
+    "ok": false,
+    "code": "not_pending",
+    "ms": 1.04
+   },
+   {
+    "at": "2026-11-06T20:34:52.722Z",
+    "principal": "booking-assistant",
+    "tool": "propose_reschedule",
+    "args": {
+     "ref": "SWNRXN",
+     "to_slot": "HELI-2026-11-06-0800"
+    },
+    "backend": "mongo",
+    "ok": true,
+    "code": null,
+    "ms": 7.4
+   },
+   {
+    "at": "2026-11-06T20:34:52.736Z",
+    "principal": "call-center-agent",
+    "tool": "approve_change",
+    "args": {
+     "approval_id": "2095579a-b56b-4f40-b073-1e18dad45b4a"
+    },
+    "backend": "mongo",
+    "ok": false,
+    "code": "full",
+    "ms": 9.43
+   }
+  ]
+ },
+ "overhead": {
+  "calls": 400,
+  "note": "MCP adds the protocol hop plus one audit-log insert per call (in-memory transport; stdio adds process I/O)",
+  "mongo direct": {
+   "p50": 0.61,
+   "p95": 3.18
+  },
+  "mongo via MCP": {
+   "p50": 2.89,
+   "p95": 4.72
+  },
+  "old API direct": {
+   "p50": 5.16,
+   "p95": 5.48
+  },
+  "old API via MCP": {
+   "p50": 7.09,
+   "p95": 8.89
+  }
+ }
+}

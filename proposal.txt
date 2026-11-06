@@ -1,0 +1,42 @@
+🎖️CardPointe's guide: after a timed-out auth, your app "can not determine" if the customer was charged. Blind retries can double-charge.🎖️
+
+Hi there,
+
+Rather than describe how I'd cut failed bookings, I built a checkout lab on MongoDB with a CardPointe-shaped gateway that drops answers: [your Vercel link]
+
+Measured over 1,100 checkouts with injected faults: the common count-charge-insert checkout sold 22 seats that didn't exist and charged 11 customers twice. The reworked flow: zero and zero, for about 32 ms more at the median.
+
+=== What the link shows ===
+- Checkout under faults: the same booking rush through both flows on MongoDB 8.3, counted from the database and gateway ledger: 10 charges with no booking, $6,378 to refund, versus none.
+- Race for the last seats: one 14-seat departure with no faults, where three parties each counted 9 seats taken and the old pattern booked 18.
+- Timeout path: inquireByOrderid before any retry, voidByOrderid when the gateway stays quiet, capture only after the booking exists. 26 approvals were found by asking. 20 tests, one per failure.
+- MCP layer: the official SDK in front of an old PHP-style reservation API. AI drafters read, assistants propose, a person approves. Parity caught the one rule the backends disagreed on (223/233, then 233/233).
+- Phones: Twilio signatures matched the official helper on 2,000/2,000 cases, Telnyx Ed25519 its SDK on 2,500/2,500, plus the load-balancer URL trap and out-of-order call statuses.
+
+=== Similar Work ===
+My client work is under NDA, so each is paired with the closest public product.
+
+1. https://www.xola.com/helicopter-tours/ : Xola, booking software for helicopter and tour operators, similar to your reservation and flight-ops platforms
+Role: [your role, client type, outcome]
+- Online checkout with deposits and split payments for groups
+- Weight sum total per tour and a pilot assigned to each tour
+- Digital waivers collected from every passenger after booking
+- Customer rosters exported to guides, plus API documentation
+
+2. https://tripworks.com/industries/helicopter-tour-booking-software : TripWorks, booking and payments for tour operators, similar to your checkout and guest messaging
+Role: [your role, client type, outcome]
+- Live availability and capacity management on the operator's own site
+- Payments in 135+ currencies with Apple Pay and Google Pay
+- Automated follow-ups and review reminders by text and email
+- Real-time bookings and availability with Viator, GetYourGuide and Expedia
+
+=== [$X]/hour, long-term, about [N] hours a week overlapping Pacific and Hawaii hours ===
+- First: a read-only baseline of failed bookings from CardPointe reports and MongoDB, in dollars and seats.
+- Then: the idempotent checkout behind a flag, measured against that baseline.
+- Then: webhook signature checks, and MCP read tools for email and review drafting.
+- Ongoing: the fault suite in GitLab CI, runbooks, and legacy services replaced one tool at a time behind MCP.
+
+Does checkout capture at authorization (a sale) or later? A lost answer on a sale means money taken with no booking; on auth-only it's a hold that expires. That decides what the baseline report looks for first.
+
+Thanks,
+James

@@ -1,0 +1,69 @@
+{
+ "when": "2026-11-06T20:37:22.268Z",
+ "sdk": {
+  "twilio": "6.3.0",
+  "telnyx": "7.30.0"
+ },
+ "twilioForm": {
+  "cases": 2000,
+  "signatureIdentical": 2000,
+  "bothAccept": 2000,
+  "bothRejectTampered": 2000,
+  "disagree": [],
+  "usPerVerify": 3.8
+ },
+ "twilioJson": {
+  "cases": 400,
+  "bothAccept": 400,
+  "bothRejectTamperedBody": 400
+ },
+ "proxy": {
+  "appSees": "http://10.0.0.5:3000/voice/status?loc=kauai",
+  "twilioSigned": "https://book.example.com/voice/status?loc=kauai",
+  "rebuilt": "https://book.example.com/voice/status?loc=kauai",
+  "naiveAccepts": false,
+  "rebuiltAccepts": true,
+  "untrustedSourceUrl": "http://10.0.0.5:3000/voice/status?loc=kauai"
+ },
+ "telnyx": {
+  "casesEach": 500,
+  "results": {
+   "valid": {
+    "asExpectedBoth": 500,
+    "sdkAgrees": 500
+   },
+   "tamperedBody": {
+    "asExpectedBoth": 500,
+    "sdkAgrees": 500
+   },
+   "reserializedJson": {
+    "asExpectedBoth": 500,
+    "sdkAgrees": 500
+   },
+   "staleTimestamp": {
+    "asExpectedBoth": 500,
+    "sdkAgrees": 500
+   },
+   "wrongKey": {
+    "asExpectedBoth": 500,
+    "sdkAgrees": 500
+   }
+  },
+  "usPerVerify": 124.3
+ },
+ "callStatus": {
+  "calls": 1000,
+  "deliveries": 3710,
+  "duplicates": 226,
+  "lateArrivals": 38,
+  "lastWriteWins": {
+   "wrongFinalStatus": 100,
+   "wrongDuration": 40
+  },
+  "rankedMerge": {
+   "wrongFinalStatus": 0,
+   "wrongDuration": 0
+  }
+ },
+ "ms": 2006
+}

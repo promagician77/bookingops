@@ -1,0 +1,102 @@
+[
+ {
+  "file": "checkout",
+  "name": "lost answer after the auth went through: inquire finds it, no second auth",
+  "ok": true
+ },
+ {
+  "file": "checkout",
+  "name": "legacy pattern, same lost answer: the customer's retry charges the card again",
+  "ok": true
+ },
+ {
+  "file": "checkout",
+  "name": "request never processed: inquire says 'Txn not found' (29), then one new auth",
+  "ok": true
+ },
+ {
+  "file": "checkout",
+  "name": "'Timed out' (respstat B, 62) and a 5xx are both checked before retrying",
+  "ok": true
+ },
+ {
+  "file": "checkout",
+  "name": "inquiry unreachable too: voidByOrderid, seats released, customer told payment is unavailable",
+  "ok": true
+ },
+ {
+  "file": "checkout",
+  "name": "worker dies right after the approval: the retry with the same key books once, no new auth",
+  "ok": true
+ },
+ {
+  "file": "checkout",
+  "name": "worker dies between hold and auth: the reconciler finishes it, seats counted once",
+  "ok": true
+ },
+ {
+  "file": "checkout",
+  "name": "worker dies after the booking is written: capture still happens exactly once",
+  "ok": true
+ },
+ {
+  "file": "checkout",
+  "name": "double-click: same key twice at once gives one auth and one booking",
+  "ok": true
+ },
+ {
+  "file": "checkout",
+  "name": "last 2 seats, 12 customers at once: exactly one party books (legacy oversells)",
+  "ok": true
+ },
+ {
+  "file": "checkout",
+  "name": "declined card: seats go back right away",
+  "ok": true
+ },
+ {
+  "file": "checkout",
+  "name": "hold swept while the auth was out and the seats were resold: auth voided, nobody oversold",
+  "ok": true
+ },
+ {
+  "file": "checkout",
+  "name": "worker dies after the seats were booked but before the booking row: resume counts the seats once",
+  "ok": true
+ },
+ {
+  "file": "checkout",
+  "name": "seats only on hold for someone else: the customer is told to wait, not 'sold out'",
+  "ok": true
+ },
+ {
+  "file": "mcp-webhooks",
+  "name": "MCP: old API and MongoDB answer get_booking identically through the same tool",
+  "ok": true
+ },
+ {
+  "file": "mcp-webhooks",
+  "name": "MCP: each caller only sees the tools its scopes allow",
+  "ok": true
+ },
+ {
+  "file": "mcp-webhooks",
+  "name": "MCP: a proposal changes nothing until approved, and an approval works once",
+  "ok": true
+ },
+ {
+  "file": "mcp-webhooks",
+  "name": "Twilio: same signature as the official helper, tampering rejected",
+  "ok": true
+ },
+ {
+  "file": "mcp-webhooks",
+  "name": "Telnyx: Ed25519 over timestamp|raw body; re-serialized JSON and stale timestamps fail",
+  "ok": true
+ },
+ {
+  "file": "mcp-webhooks",
+  "name": "Call status: a late in-progress or a retried ringing never overwrites completed",
+  "ok": true
+ }
+]

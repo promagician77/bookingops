@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Checkout reliability lab</title>
+<style>
+@font-face{font-family:IS;src:url(../site/fonts/instrument-sans-latin-400-normal.woff2);font-weight:400}
+@font-face{font-family:IS;src:url(../site/fonts/instrument-sans-latin-600-normal.woff2);font-weight:600}
+@font-face{font-family:IS;src:url(../site/fonts/instrument-sans-latin-700-normal.woff2);font-weight:700}
+@font-face{font-family:SM;src:url(../site/fonts/spline-sans-mono-latin-400-normal.woff2);font-weight:400}
+@font-face{font-family:SM;src:url(../site/fonts/spline-sans-mono-latin-500-normal.woff2);font-weight:500}
+@page{size:A4;margin:0}*{box-sizing:border-box}
+:root{--ink:#13233A;--ink2:#3D4B5F;--mute:#6F7884;--line:#DDD6C9;--line2:#ECE6DA;--coral:#E8613C;--teal:#0E8C8C;--sand:#F6F4EF;--sun:#E9B949}
+html,body{margin:0;background:#fff;color:var(--ink);font:400 10px/1.42 IS,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+section.pg{width:210mm;height:297mm;overflow:hidden;position:relative;page-break-after:always;padding:0 12mm}section.pg:last-child{page-break-after:auto}
+.band{background:var(--sand);border-bottom:1px solid var(--line);margin:0 -12mm;padding:8mm 12mm 5mm}
+.kick{font:500 7.8px SM,monospace;letter-spacing:.07em;text-transform:uppercase;color:var(--coral)}
+h1{font:700 22px/1.1 IS;margin:4px 0 5px;letter-spacing:-.01em;max-width:150mm}.lede{color:var(--ink2);font-size:10.3px;margin:0;max-width:175mm}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-top:4mm}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:5px;padding:6px 8px}.kpi>b{display:block;font:500 17px/1.1 SM}.kpi .vs{font:400 9px SM;color:var(--mute)}
+.kpi>span{display:block;font-size:8.4px;color:var(--ink2);margin-top:3px;line-height:1.3}.c{color:var(--coral)}.t{color:var(--teal)}
+h2{font:700 12.4px/1.2 IS;margin:3.4mm 0 1.6mm}h3{font:700 10.2px/1.3 IS;margin:0 0 3px}
+img.full{width:100%;display:block}.cap{font-size:8.3px;color:var(--mute);margin-top:2px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:5mm}ul,ol{margin:0;padding-left:13px}li{margin-bottom:2.3px}
+table{width:100%;border-collapse:collapse;font-size:9px}th{text-align:left;font:500 7.2px SM;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);border-bottom:1px solid var(--line);padding:2.4px 4px}
+td{border-bottom:1px solid var(--line2);padding:2.5px 4px;vertical-align:top}td.n,th.n{text-align:right;font-family:SM,monospace;white-space:nowrap}
+td.n.c{color:var(--coral)}td.n.t{color:var(--teal)}
+code{font:400 8.2px SM,monospace;background:var(--sand);padding:0 2px;border-radius:2px}
+.box{border:1px solid var(--line);border-radius:5px;padding:2.6mm 3.2mm}
+.q{border-left:2.5px solid var(--sun);padding:1px 0 1px 6px;margin:3px 0;color:var(--ink2)}
+.foot{position:absolute;left:12mm;right:12mm;bottom:7mm;font-size:8.1px;color:var(--mute);border-top:1px solid var(--line);padding-top:2mm;display:flex;justify-content:space-between}
+.stat{font:500 15px/1.1 SM}.statl{font-size:8.4px;color:var(--ink2)}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm}
+</style></head>
+<body>
+<section class="pg">
+  <div class="band">
+    <div class="kick">Booking · CardPointe checkout · MongoDB · MCP · Twilio / Telnyx</div>
+    <h1>What happens to a booking when the payment answer never comes back</h1>
+    <p class="lede">Two checkout flows ran the same booking rush on MongoDB <span data-k="mongo"></span> (replica set, real transactions) against a CardPointe-shaped test gateway that loses answers, times out and returns 5xx. Counts come from the database and the gateway's own ledger: <span data-k="runs"></span>. The old pattern is a common one, written by me to compare against; I haven't seen your code.</p>
+    <div class="kpis">
+      <div class="kpi"><b><span class="c" data-k="over"></span> <span class="vs">vs</span> <span class="t">0</span></b><span>seats sold beyond capacity (with faults), old pattern vs reworked</span></div>
+      <div class="kpi"><b><span class="c" data-k="twice"></span> <span class="vs">vs</span> <span class="t">0</span></b><span>customers charged twice for one booking</span></div>
+      <div class="kpi"><b><span class="c" data-k="nob"></span> <span class="vs">vs</span> <span class="t">0</span></b><span>payments taken with no booking; <b data-k="refund"></b> to refund</span></div>
+      <div class="kpi"><b class="t" data-k="found"></b><span>approvals found by asking the gateway after a lost answer; a blind retry charges each again</span></div>
+    </div>
+  </div>
+  <h2>Same rush, both flows (5 seeds each)</h2>
+  <table id="cmp"></table>
+  <h2>Race for the last seats: one departure, no faults at all</h2>
+  <img class="full" src="pdf/race.png" style="border:1px solid var(--line);border-radius:5px">
+  <div class="cap" data-k="racecap"></div>
+  <div class="box" style="margin-top:3mm;font-size:9.6px;background:var(--sand)"><b>How to read it.</b> <span data-k="raceread"></span> Nothing failed here: no lost answers, no crashes. Counting seats and inserting the booking are two separate steps with a card call between them, so every checkout in that gap sees the same free seats. The reworked flow takes the seats in the same database operation that checks them.</div>
+  <h2>What changed in the checkout</h2>
+  <div class="two">
+    <ol>
+      <li>One idempotency key per checkout, one worker per key (a lease). A retried click or a dead worker resumes the same attempt.</li>
+      <li>Seats held with one conditional update, <code>booked + held + party ≤ capacity</code>, recorded per key so retries are no-ops.</li>
+      <li>Auth only, unique order id per try. No answer, <code>B</code> or 5xx → <code>inquireByOrderid</code> first; <code>29</code> means send again; still no answer → <code>voidByOrderid</code> ×3.</li>
+    </ol>
+    <ol start="4">
+      <li>Seats held → booked in one update; booking row and attempt state in one transaction off the busy departure document.</li>
+      <li>Capture after the confirmation. A background job resumes stuck checkouts, captures, sweeps orphan holds.</li>
+      <li>Seats only held by others: “on hold for another guest, checking again”, not a false “sold out”.</li>
+    </ol>
+  </div>
+  <div class="foot"><span>Test gateway, not CardPointe; fault rates are assumptions. Scope on page 2.</span><span>1 / 2</span></div>
+</section>
+
+<section class="pg">
+  <h2 style="margin-top:9mm">When the gateway goes quiet: the path every unanswered auth takes</h2>
+  <div class="two" style="grid-template-columns:1.12fr .88fr;align-items:start">
+    <img class="full" src="pdf/timeout.png">
+    <div>
+      <div class="q">“Your application can not determine whether or not the transaction was successful.” Supply a unique order id for every authorization; inquire by order id; void by order id if the inquiry gets no response.<br><span style="font:7.6px SM;color:var(--mute)">CardPointe Gateway: Handling Timed-out Transactions (paraphrased after the quote)</span></div>
+      <table id="paths" style="margin-top:2mm"></table>
+      <div class="cap" data-k="tests"></div>
+    </div>
+  </div>
+  <h2>MCP layer in front of the old reservation API</h2>
+  <img class="full" src="pdf/mcp.png" style="max-height:44mm;object-fit:contain;object-position:left">
+  <div class="three" style="margin-top:2mm">
+    <div><div class="stat"><span class="c" data-k="pb"></span> → <span class="t" data-k="pa"></span></div><div class="statl">read calls identical between old API and MongoDB, before and after aligning the one rule parity found (cancelled seats counted as sold; planted in the stand-in API)</div></div>
+    <div><div class="stat t" data-k="mv"></div><div class="statl">identical outcomes for the same reschedules through both backends; all bookings and departures ended in the same state</div></div>
+    <div><div class="stat t" data-k="ck"></div><div class="statl">guardrails pass through a real MCP client: tools hidden by scope, propose → person approves, one use, re-check at approval, audit row per call. Overhead <b data-k="ov"></b> at p50</div></div>
+  </div>
+  <h2>Phones and webhooks</h2>
+  <div class="three">
+    <div><div class="stat t" data-k="tw"></div><div class="statl">Twilio signatures identical to the official helper; tampered copies rejected by both. JSON bodies (<code>bodySHA256</code>) too</div></div>
+    <div><div class="stat t" data-k="tx"></div><div class="statl">Telnyx Ed25519 verdicts identical to the SDK: valid, tampered, re-serialized JSON, 301 s old, wrong key</div></div>
+    <div><div class="stat"><span class="c" data-k="lw"></span> → <span class="t">0</span></div><div class="statl">calls left with the wrong final status by “last write wins” vs a ranked merge, on a simulated stream with repeats and late arrivals</div></div>
+  </div>
+  <p style="margin:2mm 0 0;font-size:9.4px">Behind a TLS-terminating load balancer the app sees <code data-k="sees"></code> but Twilio signed <code data-k="signed"></code>: the naive check rejects a genuine callback. The public URL is rebuilt from <code>X-Forwarded-*</code> only when the request comes from the load balancer.</p>
+  <div class="two" style="margin-top:3mm">
+    <div class="box"><h3>Where I'd start (an order, not a schedule)</h3><ol>
+      <li>Read-only baseline: match CardPointe reports to bookings; count double approvals, charges without bookings, respcode 62 timeouts, overbooked departures.</li>
+      <li>Safe retries behind a flag: idempotency key, unique order ids, inquire before retry, capture after booking.</li>
+      <li>Seat holds with expiry plus the sweeper and an alert.</li>
+      <li>Signature checks on every Twilio/Telnyx endpoint; ranked call-status merge for call-quality data.</li>
+      <li>MCP read tools for email and review drafting, then propose/approve; move tools one at a time on a parity run.</li>
+      <li>The fault suite in GitLab CI on every merge request; a runbook per service.</li></ol></div>
+    <div class="box"><h3>Measured vs not</h3><ul>
+      <li><b>Measured:</b> <span data-k="meas"></span></li>
+      <li><b>Not CardPointe:</b> a stand-in with its REST paths and response fields. UAT timing and codes not exercised.</li>
+      <li><b>Assumed:</b> fault rates; one MongoDB node on 2 vCPU, so Atlas latency will differ. Oversell and double-charge counts don't depend on timing.</li>
+      <li><b>No model called:</b> MCP tools were driven by an MCP client. Twilio/Telnyx checked offline against their SDKs; call-status stream simulated.</li></ul></div>
+  </div>
+  <div class="box" style="margin-top:3mm;background:var(--sand)"><h3>What I'd ask for first</h3><div class="two" style="gap:6mm"><ul>
+    <li>Read access to the GitLab group and the deploy setup (Hetzner, Atlas, AWS)</li><li>CardPointe UAT credentials and recent transaction or settlement reports</li><li>A staging Atlas cluster, or a recent snapshot to restore</li></ul><ul>
+    <li>Last month's “failed booking” tickets or call-center notes</li><li>The webhook URLs Twilio and Telnyx call today</li><li>Who approves changes that touch payments</li></ul></div></div>
+  <div class="foot"><span>Interactive page with the race replay, all results and the source: see the link in the proposal.</span><span>2 / 2</span></div>
+</section>
+<script>
+(async () => {
+  const D = await (await fetch("../site/data/site.json")).json();
+  const S = D.chaos.summary, L = S["faults/legacy"], R = S["faults/robust"], M = D.chaos.meta, fmt = (n) => Number(n).toLocaleString("en-US");
+  const T = D.tests || [], mcp = D.mcp, w = D.webhooks;
+  const K = {
+    mongo: M.mongo, runs: `${M.seeds} seeds × ${M.intentsPerRun} customers × 2 flows × 2 scenarios`,
+    over: L.oversoldSeats.sum, twice: L.chargedTwice.sum, nob: L.chargedNoBooking.sum, refund: "$" + fmt(L.refundDue.sum), found: R.paths.inquire_found_approved || 0,
+    racecap: D.race ? `${D.race.slot.tour}, ${D.race.slot.capacity} seats, ${D.race.legacy.length} parties within about two seconds. The old pattern counted seats while other payments were still in flight and booked ${D.race.slot.capacity + D.race.oversold}; the reworked flow booked ${D.race.robust.filter((l) => l.ev.some((e) => e.e === "confirmed")).reduce((s, l) => s + l.seats, 0)}. Dots: seat count or hold; yellow: card call in flight; diamonds: booked; bottom line: booked seats vs capacity.` : "",
+    raceread: (() => { if (!D.race) return ""; const c = D.race.legacy.map((l) => ({ s: l.seats, n: l.ev.find((e) => e.e === "count")?.taken, ok: l.ev.some((e) => e.e === "confirmed") })); const g = {}; for (const x of c) if (x.ok) (g[x.n] ||= []).push(x.s); const [n, arr] = Object.entries(g).sort((a, b) => b[1].length - a[1].length)[0]; return `${arr.length} parties (${arr.join(" + ")} seats) each counted ${n} of ${D.race.slot.capacity} seats taken while the others' card calls were still in flight; all ${arr.length} were charged and booked.`; })(),
+    tests: `${T.filter((t) => t.ok).length}/${T.length} tests pass on real MongoDB, one per failure: lost answer after approval, request never processed, timed out and 5xx, inquiry unreachable, worker death at each step, double-click, last-seats race, swept hold.`,
+    pb: `${mcp.parityBefore.identical}/${mcp.parityBefore.calls}`, pa: `${mcp.parityAfter.identical}/${mcp.parityAfter.calls}`,
+    mv: `${mcp.moveParity.outcomesMatch}/${mcp.moveParity.moves}`, ck: `${mcp.checks.filter((c) => c.pass).length}/${mcp.checks.length}`,
+    ov: `+${(mcp.overhead["mongo via MCP"].p50 - mcp.overhead["mongo direct"].p50).toFixed(1)} ms`,
+    tw: `${fmt(w.twilioForm.signatureIdentical)}/${fmt(w.twilioForm.cases)}`,
+    tx: `${fmt(Object.values(w.telnyx.results).reduce((s, r) => s + r.sdkAgrees, 0))}/${fmt(Object.keys(w.telnyx.results).length * w.telnyx.casesEach)}`,
+    lw: w.callStatus.lastWriteWins.wrongFinalStatus, sees: w.proxy.appSees, signed: w.proxy.twilioSigned,
+    meas: `checkout counts from MongoDB ${M.mongo} and the gateway ledger; MCP parity, guardrails and overhead (SDK ${mcp.sdk}); webhook checks vs twilio ${w.sdk.twilio} and telnyx ${w.sdk.telnyx}.`,
+  };
+  document.querySelectorAll("[data-k]").forEach((e) => (e.textContent = K[e.dataset.k]));
+  const rows = [["Seats sold beyond capacity", "oversoldSeats", 1], ["Customers charged twice", "chargedTwice", 1], ["Charged, no booking", "chargedNoBooking", 1], ["Refunds owed", "refundDue", 1, (v) => "$" + fmt(v)],
+    ["Bookings made", "bookings", 0], ["Told “on hold for another guest” instead of “sold out”", "waitedCustomers", 0], ["Good card, no booking, seats left", "lostWithSeatsLeft", 1], ["Shown “confirming…”, finished in background", "inProgressSeen", 0], ["Median time to confirmation", "p50", 0, (v) => Math.round(v / 5) + " ms"]];
+  const cell = (v, bad, f = fmt) => `<td class="n ${bad ? (v > 0 ? "c" : "t") : ""}">${f(v)}</td>`;
+  document.getElementById("cmp").innerHTML = `<tr><th></th><th class="n">no faults: old</th><th class="n">reworked</th><th class="n">with faults: old</th><th class="n">reworked</th></tr>` +
+    rows.map(([l, k, bad, f]) => `<tr><td>${l}</td>${["clean/legacy", "clean/robust", "faults/legacy", "faults/robust"].map((s) => cell(S[s][k].sum, bad, f)).join("")}</tr>`).join("");
+  const P = R.paths;
+  document.getElementById("paths").innerHTML = `<tr><th>in the fault runs</th><th class="n">count</th></tr>` + [["Auth answer lost / timed out (B) / 5xx", (P.auth_no_answer || 0) + (P.auth_timed_out || 0) + (P.auth_5xx || 0)], ["Inquiry found the approval: kept, no second auth", P.inquire_found_approved], ["Inquiry: 29 Txn not found, sent again", P.inquire_not_found], ["Inquiry found a decline", P.inquire_found_declined], ["Inquiry unanswered → voidByOrderid", P.inquire_no_answer], ["Worker crashes finished by the background job", P.reconciler_resumed]].map(([a, b]) => `<tr><td>${a}</td><td class="n">${b || 0}</td></tr>`).join("");
+  await document.fonts.ready; await Promise.all([...document.images].map((i) => i.complete ? 1 : new Promise((r) => (i.onload = i.onerror = r))));
+  document.body.dataset.ready = "1";
+})();
+</script>
+</body></html>
